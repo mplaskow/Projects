@@ -1,63 +1,76 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using Parascan1.Data;
+using System.Windows.Forms;
+using ImagingController;
+using System.IO.Ports;
 
-
-namespace Parascan1.Processing
+namespace Parascan0
 {
-    class Program
+    static class Program
     {
-        static void Main(string[] args)
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        static void Main()
         {
-            #region "*** Check for Running Instance and Close ***"
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            
 
-            string STRING_PROCESSNAME = SharedValueController.PROCESS_NAME;
-            //const int SW_HIDE = 0;
-            int intProcessCount = 0;
-            int intProcessCountMaximum = Properties.Settings.Default.KEY_CACHE_APPLICATION_THREADS;
-            bool IsLimitedThreads = true;
-            bool IsRealTime = false;
-            string str;
+            int waitTime = Properties.Settings.Default.INTEGER_SPLASHSCREENTIME;
+            Application.DoEvents();
 
-            foreach (string argument in args)
+
+            if (Properties.Settings.Default.BOOLEAN_ISLIVESCAN == true)
             {
-                if (argument.ToUpper() == SharedValueController.STRING_ARGUMENT_NOTHREADLIMIT)
-                {
-                    IsLimitedThreads = false;
-                }
-                else if (argument.ToUpper() == SharedValueController.STRING_ARGUMENT_REALTIME)
-                {
-                    IsRealTime = true;
-                    intProcessCountMaximum++;
-                }
+                formSplashScreen objectSplashScreen = new formSplashScreen();
+                objectSplashScreen.Show();
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(waitTime);
+                Application.DoEvents();
+                objectSplashScreen.Hide();
             }
 
-            foreach (Process objectProcess in Process.GetProcesses())
+            try
             {
-                str = objectProcess.ProcessName;
-                if ((objectProcess.ProcessName.Trim().ToUpper().Contains(STRING_PROCESSNAME) == true) && (IsLimitedThreads == true))
+                SerialPort port = new SerialPort(Properties.Settings.Default.STRING_COMPORT, 9600);
+                while (port.IsOpen == false)
                 {
-                    intProcessCount++;
-                    if (intProcessCount > intProcessCountMaximum) { return; }
+                    port.Open();
+                    System.Threading.Thread.Sleep(500);
                 }
+                port.WriteLine("/1aM1L500V40000D500R\n\r");
+                System.Threading.Thread.Sleep(500);
+                port.WriteLine("/1aM1L500V40000P500R\n\r");
+                System.Threading.Thread.Sleep(500);
+                port.WriteLine("s2R\n\r");
+                System.Threading.Thread.Sleep(500);
+                port.Close();
+                port = null;
             }
+            catch { }
 
-            #endregion
-            if ((Properties.Settings.Default.BOOL_ISPERFORMANCEREALTIME == true) || (IsRealTime == true))
+            
+            if (Properties.Settings.Default.BOOLEAN_ISLIVESCAN == true)
             {
-                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
+                Application.Run(new formInterface());
+            }
+            else if ((Properties.Settings.Default.BOOLEAN_ISTRAINING == true) && (System.Windows.Forms.MessageBox.Show("Test Run?", "", MessageBoxButtons.YesNo) == DialogResult.Yes))
+            {
+                Application.Run(new MainForm());
             }
             else
             {
-                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+                formSplashScreen objectSplashScreen = new formSplashScreen();
+                objectSplashScreen.Show();
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(waitTime);
+                Application.DoEvents();
+                objectSplashScreen.Hide();
+                Application.Run(new formInterface());
             }
-            FilterController objectFilterController = new FilterController();
-            objectFilterController.ProcessFilters();
+            
         }
-
-
-       
     }
 }
